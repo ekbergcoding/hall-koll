@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -13,6 +14,7 @@ import {
   BookOpen,
   Store,
   PieChart,
+  LogOut,
   Menu,
   X,
 } from "lucide-react";
@@ -31,6 +33,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   return (
@@ -87,10 +90,32 @@ export function Sidebar() {
             );
           })}
         </nav>
-        <div className="border-t p-4">
-          <p className="text-xs text-muted-foreground text-center">
-            Alla beräkningar sker lokalt i din webbläsare.
-          </p>
+        <div className="border-t p-3 space-y-2">
+          {session?.user && (
+            <div className="flex items-center gap-2 px-2">
+              {session.user.image && (
+                <img
+                  src={session.user.image}
+                  alt=""
+                  className="h-7 w-7 rounded-full"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{session.user.name}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{session.user.email}</p>
+              </div>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-xs text-muted-foreground gap-2"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Logga ut
+          </Button>
         </div>
       </aside>
     </>

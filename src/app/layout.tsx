@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AppProvider } from "@/hooks/useAppStore";
-import { AppShell } from "@/components/layout/AppShell";
+import { SessionGuard } from "@/components/auth/SessionGuard";
+import { AuthenticatedLayout } from "@/components/auth/AuthenticatedLayout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,9 +15,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="sv">
       <body className={inter.className}>
-        <AppProvider>
-          <AppShell>{children}</AppShell>
-        </AppProvider>
+        <SessionGuard>
+          <AuthenticatedLayout>
+            {children}
+          </AuthenticatedLayout>
+        </SessionGuard>
       </body>
     </html>
   );

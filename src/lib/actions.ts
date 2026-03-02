@@ -1,6 +1,7 @@
 "use server";
 
 import { getSQL } from "./db";
+import { getRequiredUserId } from "./auth";
 import type { Transaction, CategorizationRule, RecurringItem, UserSettings } from "./transactionModel";
 import { DEFAULT_SETTINGS } from "./transactionModel";
 import { DEFAULT_RULES } from "./categorizer";
@@ -8,24 +9,19 @@ import { DEFAULT_RULES } from "./categorizer";
 // ── Transactions ──
 
 export async function getAllTransactions(): Promise<Transaction[]> {
-  try {
-    console.log("[actions] getAllTransactions: start");
-    const sql = getSQL();
-    const rows = await sql`SELECT * FROM transactions ORDER BY booking_date DESC NULLS FIRST`;
-    console.log("[actions] getAllTransactions: got", rows.length, "rows");
-    return rows.map(rowToTransaction);
-  } catch (error) {
-    console.error("[actions] getAllTransactions FAILED:", error);
-    throw error;
-  }
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM transactions WHERE user_id = ${userId} ORDER BY booking_date DESC NULLS FIRST`;
+  return rows.map(rowToTransaction);
 }
 
 export async function saveTransactions(transactions: Transaction[]): Promise<void> {
+  const userId = await getRequiredUserId();
   const sql = getSQL();
   for (const t of transactions) {
     await sql`
-      INSERT INTO transactions (id, booking_date, is_reserved, amount, currency, rubrik, sender, recipient, name, saldo, month_key, category, merchant_key, tags, user_override)
-      VALUES (${t.id}, ${t.bookingDate}, ${t.isReserved}, ${t.amount}, ${t.currency}, ${t.rubrik}, ${t.sender}, ${t.recipient}, ${t.name}, ${t.saldo}, ${t.monthKey}, ${t.category}, ${t.merchantKey}, ${t.tags}, ${t.userOverride})
+      INSERT INTO transactions (id, user_id, booking_date, is_reserved, amount, currency, rubrik, sender, recipient, name, saldo, month_key, category, merchant_key, tags, user_override)
+      VALUES (${t.id}, ${userId}, ${t.bookingDate}, ${t.isReserved}, ${t.amount}, ${t.currency}, ${t.rubrik}, ${t.sender}, ${t.recipient}, ${t.name}, ${t.saldo}, ${t.monthKey}, ${t.category}, ${t.merchantKey}, ${t.tags}, ${t.userOverride})
       ON CONFLICT (id) DO UPDATE SET
         booking_date = EXCLUDED.booking_date,
         is_reserved = EXCLUDED.is_reserved,
@@ -50,53 +46,42 @@ export async function updateTransaction(transaction: Transaction): Promise<void>
 }
 
 export async function clearTransactions(): Promise<void> {
+  const userId = await getRequiredUserId();
   const sql = getSQL();
-  await sql`DELETE FROM transactions`;
+  await sql`DELETE FROM transactions WHERE user_id = ${userId}`;
 }
 
 // ── Rules ──
 
 export async function getAllRules(): Promise<CategorizationRule[]> {
-  try {
-    console.log("[actions] getAllRules: start");
-    const sql = getSQL();
-    const rows = await sql`SELECT * FROM rules ORDER BY priority ASC`;
-    console.log("[actions] getAllRules: got", rows.length, "rows");
-    if (rows.length === 0) {
-      console.log("[actions] getAllRules: seeding default rules");
-      await saveRules(DEFAULT_RULES);
-      return DEFAULT_RULES;
-    }
-    return rows.map(rowToRule);
-  } catch (error) {
-    console.error("[actions] getAllRules FAILED:", error);
-    throw error;
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM rules WHERE user_id = ${userId} ORDER BY priority ASC`;
+  if (rows.length === 0) {
+    await saveRules(DEFAULT_RULES);
+    return DEFAULT_RULES;
   }
+  return rows.map(rowToRule);
 }
 
 export async function saveRules(rules: CategorizationRule[]): Promise<void> {
-  try {
-    console.log("[actions] saveRules: saving", rules.length, "rules");
-    const sql = getSQL();
-    await sql`DELETE FROM rules`;
-    for (const r of rules) {
-      await sql`
-        INSERT INTO rules (id, field, match_type, pattern, category, merchant_key, amount_condition, priority, is_default, enabled)
-        VALUES (${r.id}, ${r.field}, ${r.matchType}, ${r.pattern}, ${r.category}, ${r.merchantKey ?? null}, ${r.amountCondition ?? null}, ${r.priority}, ${r.isDefault}, ${r.enabled})
-      `;
-    }
-    console.log("[actions] saveRules: done");
-  } catch (error) {
-    console.error("[actions] saveRules FAILED:", error);
-    throw error;
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  await sql`DELETE FROM rules WHERE user_id = ${userId}`;
+  for (const r of rules) {
+    await sql`
+      INSERT INTO rules (id, user_id, field, match_type, pattern, category, merchant_key, amount_condition, priority, is_default, enabled)
+      VALUES (${r.id}, ${userId}, ${r.field}, ${r.matchType}, ${r.pattern}, ${r.category}, ${r.merchantKey ?? null}, ${r.amountCondition ?? null}, ${r.priority}, ${r.isDefault}, ${r.enabled})
+    `;
   }
 }
 
 export async function addRule(rule: CategorizationRule): Promise<void> {
+  const userId = await getRequiredUserId();
   const sql = getSQL();
   await sql`
-    INSERT INTO rules (id, field, match_type, pattern, category, merchant_key, amount_condition, priority, is_default, enabled)
-    VALUES (${rule.id}, ${rule.field}, ${rule.matchType}, ${rule.pattern}, ${rule.category}, ${rule.merchantKey ?? null}, ${rule.amountCondition ?? null}, ${rule.priority}, ${rule.isDefault}, ${rule.enabled})
+    INSERT INTO rules (id, user_id, field, match_type, pattern, category, merchant_key, amount_condition, priority, is_default, enabled)
+    VALUES (${rule.id}, ${userId}, ${rule.field}, ${rule.matchType}, ${rule.pattern}, ${rule.category}, ${rule.merchantKey ?? null}, ${rule.amountCondition ?? null}, ${rule.priority}, ${rule.isDefault}, ${rule.enabled})
     ON CONFLICT (id) DO UPDATE SET
       field = EXCLUDED.field,
       match_type = EXCLUDED.match_type,
@@ -111,32 +96,28 @@ export async function addRule(rule: CategorizationRule): Promise<void> {
 }
 
 export async function deleteRule(id: string): Promise<void> {
+  const userId = await getRequiredUserId();
   const sql = getSQL();
-  await sql`DELETE FROM rules WHERE id = ${id}`;
+  await sql`DELETE FROM rules WHERE id = ${id} AND user_id = ${userId}`;
 }
 
 // ── Recurring ──
 
 export async function getAllRecurring(): Promise<RecurringItem[]> {
-  try {
-    console.log("[actions] getAllRecurring: start");
-    const sql = getSQL();
-    const rows = await sql`SELECT * FROM recurring`;
-    console.log("[actions] getAllRecurring: got", rows.length, "rows");
-    return rows.map(rowToRecurring);
-  } catch (error) {
-    console.error("[actions] getAllRecurring FAILED:", error);
-    throw error;
-  }
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM recurring WHERE user_id = ${userId}`;
+  return rows.map(rowToRecurring);
 }
 
 export async function saveRecurring(items: RecurringItem[]): Promise<void> {
+  const userId = await getRequiredUserId();
   const sql = getSQL();
-  await sql`DELETE FROM recurring`;
+  await sql`DELETE FROM recurring WHERE user_id = ${userId}`;
   for (const item of items) {
     await sql`
-      INSERT INTO recurring (id, merchant_key, label, category, average_amount, typical_day, occurrences, confidence, confirmed, transaction_ids)
-      VALUES (${item.id}, ${item.merchantKey}, ${item.label}, ${item.category}, ${item.averageAmount}, ${item.typicalDay}, ${item.occurrences}, ${item.confidence}, ${item.confirmed}, ${item.transactionIds})
+      INSERT INTO recurring (id, user_id, merchant_key, label, category, average_amount, typical_day, occurrences, confidence, confirmed, transaction_ids)
+      VALUES (${item.id}, ${userId}, ${item.merchantKey}, ${item.label}, ${item.category}, ${item.averageAmount}, ${item.typicalDay}, ${item.occurrences}, ${item.confidence}, ${item.confirmed}, ${item.transactionIds})
     `;
   }
 }
@@ -144,37 +125,62 @@ export async function saveRecurring(items: RecurringItem[]): Promise<void> {
 // ── Settings ──
 
 export async function getSettings(): Promise<UserSettings> {
-  try {
-    console.log("[actions] getSettings: start");
-    const sql = getSQL();
-    const rows = await sql`SELECT * FROM settings WHERE key = 'user'`;
-    console.log("[actions] getSettings: got", rows.length, "rows");
-    if (rows.length === 0) return DEFAULT_SETTINGS;
-    const r = rows[0];
-    return {
-      includeReserved: r.include_reserved,
-      monthlyBudget: Number(r.monthly_budget),
-      cashBuffer: Number(r.cash_buffer),
-    };
-  } catch (error) {
-    console.error("[actions] getSettings FAILED:", error);
-    throw error;
-  }
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM settings WHERE key = 'user' AND user_id = ${userId}`;
+  if (rows.length === 0) return DEFAULT_SETTINGS;
+  const r = rows[0];
+  return {
+    includeReserved: r.include_reserved as boolean,
+    monthlyBudget: Number(r.monthly_budget),
+    cashBuffer: Number(r.cash_buffer),
+  };
 }
 
 export async function saveSettings(settings: UserSettings): Promise<void> {
+  const userId = await getRequiredUserId();
   const sql = getSQL();
   await sql`
-    INSERT INTO settings (key, include_reserved, monthly_budget, cash_buffer)
-    VALUES ('user', ${settings.includeReserved}, ${settings.monthlyBudget}, ${settings.cashBuffer})
-    ON CONFLICT (key) DO UPDATE SET
+    INSERT INTO settings (key, user_id, include_reserved, monthly_budget, cash_buffer)
+    VALUES ('user', ${userId}, ${settings.includeReserved}, ${settings.monthlyBudget}, ${settings.cashBuffer})
+    ON CONFLICT (key, user_id) DO UPDATE SET
       include_reserved = EXCLUDED.include_reserved,
       monthly_budget = EXCLUDED.monthly_budget,
       cash_buffer = EXCLUDED.cash_buffer
   `;
 }
 
-// ── CSV Export (pure function, no DB) ──
+// ── Custom Categories ──
+
+export interface CustomCategory {
+  name: string;
+  color: string;
+}
+
+export async function getCustomCategories(): Promise<CustomCategory[]> {
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  const rows = await sql`SELECT name, color FROM custom_categories WHERE user_id = ${userId} ORDER BY name`;
+  return rows.map((r) => ({ name: r.name as string, color: r.color as string }));
+}
+
+export async function addCustomCategory(name: string, color: string): Promise<void> {
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  await sql`
+    INSERT INTO custom_categories (name, user_id, color)
+    VALUES (${name}, ${userId}, ${color})
+    ON CONFLICT (name, user_id) DO UPDATE SET color = EXCLUDED.color
+  `;
+}
+
+export async function deleteCustomCategory(name: string): Promise<void> {
+  const userId = await getRequiredUserId();
+  const sql = getSQL();
+  await sql`DELETE FROM custom_categories WHERE name = ${name} AND user_id = ${userId}`;
+}
+
+// ── CSV Export ──
 
 export async function exportTransactionsToCSV(transactions: Transaction[]): Promise<string> {
   const headers = [

@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@auth/pg-adapter": "^1.11.1",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-checkbox": "latest",
     "@radix-ui/react-dialog": "latest",
@@ -32,6 +33,8 @@
     "idb": "latest",
     "lucide-react": "latest",
     "next": "latest",
+    "next-auth": "^5.0.0-beta.30",
+    "pg": "^8.19.0",
     "postcss": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -43,6 +46,7 @@
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
     "@types/node": "latest",
+    "@types/pg": "^8.18.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "jsdom": "latest",
