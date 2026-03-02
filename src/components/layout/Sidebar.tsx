@@ -11,6 +11,8 @@ import {
   Settings,
   TrendingUp,
   BookOpen,
+  Store,
+  PieChart,
   Menu,
   X,
 } from "lucide-react";
@@ -19,6 +21,8 @@ import { Button } from "@/components/ui/button";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/transaktioner", label: "Transaktioner", icon: List },
+  { href: "/kategorier", label: "Kategorier", icon: PieChart },
+  { href: "/handlare", label: "Handlare", icon: Store },
   { href: "/aterkommande", label: "Återkommande", icon: RefreshCcw },
   { href: "/regler", label: "Regler", icon: BookOpen },
   { href: "/prognos", label: "Prognos", icon: TrendingUp },

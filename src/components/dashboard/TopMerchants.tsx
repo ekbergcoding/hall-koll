@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { MerchantRank } from "@/lib/analytics";
 import { CATEGORY_COLORS } from "@/lib/transactionModel";
 import { formatSEK } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
 
 interface TopMerchantsProps {
   merchants: MerchantRank[];
@@ -16,7 +18,12 @@ export function TopMerchants({ merchants }: TopMerchantsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Topp handlare</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Topp handlare</CardTitle>
+          <Link href="/handlare" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+            Visa alla <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
