@@ -14,8 +14,8 @@ export default function InstallningarPage() {
   const { transactions, settings, updateSettings, exportCSV, clearAllData, loadDemoData, isLoading } = useAppStore();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  function handleExport() {
-    const csv = exportCSV();
+  async function handleExport() {
+    const csv = await exportCSV();
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

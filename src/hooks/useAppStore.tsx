@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import type { Transaction, CategorizationRule, RecurringItem, UserSettings } from "@/lib/transactionModel";
-import { DEFAULT_SETTINGS } from "@/lib/transactionModel";
+import { DEFAULT_SETTINGS, deriveMerchantKey } from "@/lib/transactionModel";
 import { DEFAULT_RULES, applyCategorizationToAll, buildAutoTags, categorizeTransaction } from "@/lib/categorizer";
 import { parseNordeaCSV, deduplicateTransactions } from "@/lib/csvParser";
 import { detectRecurring } from "@/lib/recurring";
@@ -13,8 +13,7 @@ import {
   getAllRecurring, saveRecurring,
   getSettings, saveSettings,
   exportTransactionsToCSV,
-} from "@/lib/storage";
-import { deriveMerchantKey } from "@/lib/transactionModel";
+} from "@/lib/actions";
 
 interface AppState {
   transactions: Transaction[];
@@ -31,7 +30,7 @@ interface AppState {
   deleteRule: (id: string) => void;
   toggleRecurring: (id: string) => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
-  exportCSV: () => string;
+  exportCSV: () => Promise<string>;
   clearAllData: () => void;
   loadDemoData: () => void;
   refreshRecurring: () => void;
@@ -155,14 +154,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const allRules = await getAllRules();
     setRules(allRules);
 
-    setTransactions((prev) => {
-      const updated = applyCategorizationToAll(prev, allRules).map((t) => ({
-        ...t,
-        tags: buildAutoTags(t),
-      }));
-      saveTransactions(updated);
-      return updated;
-    });
+    const currentTxns = await getAllTransactions();
+    const updated = applyCategorizationToAll(currentTxns, allRules).map((t) => ({
+      ...t,
+      tags: buildAutoTags(t),
+    }));
+    await saveTransactions(updated);
+    setTransactions(updated);
   }, []);
 
   const addRuleCb = useCallback(async (rule: CategorizationRule) => {
@@ -170,14 +168,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const allRules = await getAllRules();
     setRules(allRules);
 
-    setTransactions((prev) => {
-      const updated = applyCategorizationToAll(prev, allRules).map((t) => ({
-        ...t,
-        tags: buildAutoTags(t),
-      }));
-      saveTransactions(updated);
-      return updated;
-    });
+    const currentTxns = await getAllTransactions();
+    const updated = applyCategorizationToAll(currentTxns, allRules).map((t) => ({
+      ...t,
+      tags: buildAutoTags(t),
+    }));
+    await saveTransactions(updated);
+    setTransactions(updated);
   }, []);
 
   const updateRuleCb = useCallback(async (rule: CategorizationRule) => {
@@ -185,14 +182,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const allRules = await getAllRules();
     setRules(allRules);
 
-    setTransactions((prev) => {
-      const updated = applyCategorizationToAll(prev, allRules).map((t) => ({
-        ...t,
-        tags: buildAutoTags(t),
-      }));
-      saveTransactions(updated);
-      return updated;
-    });
+    const currentTxns = await getAllTransactions();
+    const updated = applyCategorizationToAll(currentTxns, allRules).map((t) => ({
+      ...t,
+      tags: buildAutoTags(t),
+    }));
+    await saveTransactions(updated);
+    setTransactions(updated);
   }, []);
 
   const deleteRuleCb = useCallback(async (id: string) => {
@@ -217,7 +213,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const exportCSV = useCallback(() => {
+  const exportCSV = useCallback(async () => {
     return exportTransactionsToCSV(transactions);
   }, [transactions]);
 
