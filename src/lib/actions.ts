@@ -2,7 +2,7 @@
 
 import { getSQL } from "./db";
 import { getRequiredUserId } from "./auth";
-import type { Transaction, CategorizationRule, RecurringItem, UserSettings } from "./transactionModel";
+import type { Transaction, CategorizationRule, RecurringItem, UserSettings, CategoryBudget } from "./transactionModel";
 import { DEFAULT_SETTINGS } from "./transactionModel";
 import { DEFAULT_RULES } from "./categorizer";
 
@@ -20,8 +20,8 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
   const sql = getSQL();
   for (const t of transactions) {
     await sql`
-      INSERT INTO transactions (id, user_id, booking_date, is_reserved, amount, currency, rubrik, sender, recipient, name, saldo, month_key, category, merchant_key, tags, user_override)
-      VALUES (${t.id}, ${userId}, ${t.bookingDate}, ${t.isReserved}, ${t.amount}, ${t.currency}, ${t.rubrik}, ${t.sender}, ${t.recipient}, ${t.name}, ${t.saldo}, ${t.monthKey}, ${t.category}, ${t.merchantKey}, ${t.tags}, ${t.userOverride})
+      INSERT INTO transactions (id, user_id, booking_date, is_reserved, amount, currency, rubrik, sender, recipient, name, saldo, month_key, category, merchant_key, tags, user_override, note)
+      VALUES (${t.id}, ${userId}, ${t.bookingDate}, ${t.isReserved}, ${t.amount}, ${t.currency}, ${t.rubrik}, ${t.sender}, ${t.recipient}, ${t.name}, ${t.saldo}, ${t.monthKey}, ${t.category}, ${t.merchantKey}, ${t.tags}, ${t.userOverride}, ${t.note || ''})
       ON CONFLICT (id) DO UPDATE SET
         booking_date = EXCLUDED.booking_date,
         is_reserved = EXCLUDED.is_reserved,
@@ -36,7 +36,8 @@ export async function saveTransactions(transactions: Transaction[]): Promise<voi
         category = EXCLUDED.category,
         merchant_key = EXCLUDED.merchant_key,
         tags = EXCLUDED.tags,
-        user_override = EXCLUDED.user_override
+        user_override = EXCLUDED.user_override,
+        note = EXCLUDED.note
     `;
   }
 }
@@ -128,12 +129,18 @@ export async function getSettings(): Promise<UserSettings> {
   const userId = await getRequiredUserId();
   const sql = getSQL();
   const rows = await sql`SELECT * FROM settings WHERE key = 'user' AND user_id = ${userId}`;
-  if (rows.length === 0) return DEFAULT_SETTINGS;
+  const budgetRows = await sql`SELECT category, budget FROM category_budgets WHERE user_id = ${userId}`;
+  const categoryBudgets: CategoryBudget[] = budgetRows.map((r: any) => ({
+    category: r.category,
+    budget: Number(r.budget),
+  }));
+  if (rows.length === 0) return { ...DEFAULT_SETTINGS, categoryBudgets };
   const r = rows[0];
   return {
     includeReserved: r.include_reserved as boolean,
     monthlyBudget: Number(r.monthly_budget),
     cashBuffer: Number(r.cash_buffer),
+    categoryBudgets,
   };
 }
 
@@ -148,6 +155,16 @@ export async function saveSettings(settings: UserSettings): Promise<void> {
       monthly_budget = EXCLUDED.monthly_budget,
       cash_buffer = EXCLUDED.cash_buffer
   `;
+  // Sync category budgets
+  await sql`DELETE FROM category_budgets WHERE user_id = ${userId}`;
+  for (const cb of settings.categoryBudgets ?? []) {
+    if (cb.budget > 0) {
+      await sql`
+        INSERT INTO category_budgets (user_id, category, budget)
+        VALUES (${userId}, ${cb.category}, ${cb.budget})
+      `;
+    }
+  }
 }
 
 // ── Custom Categories ──
@@ -225,6 +242,7 @@ function rowToTransaction(r: Record<string, unknown>): Transaction {
     merchantKey: r.merchant_key as string,
     tags: (r.tags as string[]) || [],
     userOverride: r.user_override as boolean,
+    note: (r.note as string) || "",
   };
 }
 

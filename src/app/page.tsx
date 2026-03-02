@@ -9,7 +9,8 @@ import { CategoryDonut } from "@/components/dashboard/CategoryDonut";
 import { TopMerchants } from "@/components/dashboard/TopMerchants";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { FileUpload } from "@/components/import/FileUpload";
-import { computeMonthlyStats, computeCategoryBreakdown, computeTopMerchants, getAvailableMonths, filterByMonth } from "@/lib/analytics";
+import { computeMonthlyStats, computeCategoryBreakdown, computeTopMerchants, computeSavingsRate, getAvailableMonths, filterByMonth } from "@/lib/analytics";
+import { SavingsChart } from "@/components/dashboard/SavingsChart";
 import { getMonthLabel } from "@/lib/utils";
 import { CATEGORIES, CATEGORY_COLORS, type Category } from "@/lib/transactionModel";
 import { Badge } from "@/components/ui/badge";
@@ -138,6 +139,12 @@ export default function DashboardPage() {
 
       {/* Charts */}
       {monthlyStats.length > 0 && <MonthlyChart stats={monthlyStats} />}
+
+      {/* Savings rate */}
+      {(() => {
+        const savingsData = computeSavingsRate(monthlyStats);
+        return savingsData.length > 1 ? <SavingsChart data={savingsData} /> : null;
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CategoryDonut breakdown={categoryBreakdown} />

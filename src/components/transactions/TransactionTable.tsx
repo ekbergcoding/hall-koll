@@ -14,7 +14,7 @@ import { CategorySelector } from "./CategorySelector";
 import { formatSEKExact, formatDate } from "@/lib/utils";
 import { CATEGORIES, CATEGORY_COLORS, type Transaction, type Category } from "@/lib/transactionModel";
 import { useAppStore } from "@/hooks/useAppStore";
-import { Copy, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Copy, Search, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -30,12 +30,14 @@ interface PendingCategoryChange {
 }
 
 export function TransactionTable({ transactions, compact = false }: TransactionTableProps) {
-  const { updateTransactionCategory, updateCategoryByMerchant, createRuleFromTransaction } = useAppStore();
+  const { updateTransactionCategory, updateCategoryByMerchant, updateTransactionNote, createRuleFromTransaction } = useAppStore();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [selectedCategories, setSelectedCategories] = useState<Set<Category>>(new Set());
   const [showReserved, setShowReserved] = useState(false);
   const [pendingChange, setPendingChange] = useState<PendingCategoryChange | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
 
   const categoriesInUse = useMemo(() => {
     const cats = new Set(transactions.map((t) => t.category));
@@ -177,7 +179,7 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
                   <td className="py-2.5 pr-3 text-xs text-muted-foreground whitespace-nowrap">
                     {t.bookingDate ? formatDate(new Date(t.bookingDate)) : "Reserverat"}
                   </td>
-                  <td className="py-2.5 pr-3 max-w-[240px]">
+                  <td className="py-2.5 pr-3 max-w-[280px]">
                     <div className="truncate text-sm">{t.rubrik}</div>
                     {t.tags.length > 0 && (
                       <div className="flex gap-1 mt-0.5">
@@ -188,6 +190,35 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
                         ))}
                       </div>
                     )}
+                    {editingNoteId === t.id ? (
+                      <div className="mt-1">
+                        <Input
+                          autoFocus
+                          placeholder="Skriv en anteckning..."
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          onBlur={() => {
+                            updateTransactionNote(t.id, noteText);
+                            setEditingNoteId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateTransactionNote(t.id, noteText);
+                              setEditingNoteId(null);
+                            }
+                            if (e.key === "Escape") setEditingNoteId(null);
+                          }}
+                          className="h-6 text-xs"
+                        />
+                      </div>
+                    ) : t.note ? (
+                      <button
+                        onClick={() => { setEditingNoteId(t.id); setNoteText(t.note); }}
+                        className="text-[11px] text-muted-foreground hover:text-foreground mt-0.5 flex items-center gap-1 truncate max-w-full"
+                      >
+                        <MessageSquare className="h-2.5 w-2.5 shrink-0" />{t.note}
+                      </button>
+                    ) : null}
                   </td>
                   <td className="py-2.5 pr-3">
                     <CategorySelector
@@ -200,16 +231,27 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
                     {formatSEKExact(t.amount)}
                   </td>
                   <td className="py-2.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => createRuleFromTransaction(t, t.category)}
-                      title="Skapa regel för liknande transaktioner"
-                    >
-                      <Copy className="h-3 w-3" />
-                      <span className="hidden sm:inline">Alla liknande</span>
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => { setEditingNoteId(t.id); setNoteText(t.note || ""); }}
+                        title="Lägg till anteckning"
+                      >
+                        <MessageSquare className={`h-3 w-3 ${t.note ? "text-primary" : ""}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => createRuleFromTransaction(t, t.category)}
+                        title="Skapa regel för liknande transaktioner"
+                      >
+                        <Copy className="h-3 w-3" />
+                        <span className="hidden sm:inline">Liknande</span>
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

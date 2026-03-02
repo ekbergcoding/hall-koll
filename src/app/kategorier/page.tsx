@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { CATEGORY_COLORS, type Category } from "@/lib/transactionModel";
-import { computeCategoryBreakdown, getAvailableMonths, filterByMonth } from "@/lib/analytics";
+import { computeCategoryBreakdown, computeCategoryMonthly, getAvailableMonths, filterByMonth } from "@/lib/analytics";
 import { formatSEK, getMonthLabel } from "@/lib/utils";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 export default function KategorierPage() {
   const { transactions, settings, isLoading } = useAppStore();
@@ -27,6 +28,22 @@ export default function KategorierPage() {
     () => breakdown.reduce((sum, b) => sum + b.total, 0),
     [breakdown]
   );
+
+  // Compute 3-month average per category for trend comparison
+  const categoryAvgs = useMemo(() => {
+    const monthly = computeCategoryMonthly(transactions, settings.includeReserved);
+    const allMonths = getAvailableMonths(transactions);
+    const recentMonths = allMonths.slice(-3);
+    const avgs = new Map<string, number>();
+    for (const cat of breakdown.map((b) => b.category)) {
+      const catMonthly = monthly.filter(
+        (m) => m.category === cat && recentMonths.includes(m.monthKey)
+      );
+      const total = catMonthly.reduce((s, m) => s + m.total, 0);
+      avgs.set(cat, catMonthly.length > 0 ? total / recentMonths.length : 0);
+    }
+    return avgs;
+  }, [transactions, settings.includeReserved, breakdown]);
 
   const pieData = breakdown.map((b) => ({
     name: b.category,
@@ -165,8 +182,9 @@ export default function KategorierPage() {
                   <th className="pb-2 pr-3 font-medium">Kategori</th>
                   <th className="pb-2 pr-3 font-medium text-right">Antal</th>
                   <th className="pb-2 pr-3 font-medium text-right">Totalt</th>
-                  <th className="pb-2 pr-3 font-medium text-right">Snitt</th>
-                  <th className="pb-2 font-medium text-right">Andel</th>
+                  <th className="pb-2 pr-3 font-medium text-right">Snitt/txn</th>
+                  <th className="pb-2 pr-3 font-medium text-right">Andel</th>
+                  <th className="pb-2 font-medium text-right">vs 3-mån snitt</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,8 +204,27 @@ export default function KategorierPage() {
                     <td className="py-2.5 pr-3 text-right font-mono text-muted-foreground">
                       {formatSEK(b.count > 0 ? b.total / b.count : 0)}
                     </td>
-                    <td className="py-2.5 text-right text-muted-foreground">
+                    <td className="py-2.5 pr-3 text-right text-muted-foreground">
                       {grandTotal > 0 ? ((b.total / grandTotal) * 100).toFixed(1) : 0}%
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {(() => {
+                        const avg = categoryAvgs.get(b.category) || 0;
+                        if (avg === 0) return <Minus className="h-3 w-3 text-muted-foreground inline" />;
+                        const monthCount = selectedMonth ? 1 : getAvailableMonths(transactions).length;
+                        const currentMonthly = b.total / Math.max(monthCount, 1);
+                        const diff = ((currentMonthly - avg) / avg) * 100;
+                        if (Math.abs(diff) < 5) return <span className="text-xs text-muted-foreground">~0%</span>;
+                        return diff > 0 ? (
+                          <span className="text-xs text-red-600 flex items-center justify-end gap-0.5">
+                            <TrendingUp className="h-3 w-3" />+{Math.round(diff)}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-green-600 flex items-center justify-end gap-0.5">
+                            <TrendingDown className="h-3 w-3" />{Math.round(diff)}%
+                          </span>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
@@ -199,7 +236,8 @@ export default function KategorierPage() {
                     </td>
                     <td className="py-2.5 pr-3 text-right font-mono">{formatSEK(grandTotal)}</td>
                     <td className="py-2.5 pr-3 text-right" />
-                    <td className="py-2.5 text-right">100%</td>
+                    <td className="py-2.5 pr-3 text-right">100%</td>
+                    <td className="py-2.5 text-right" />
                   </tr>
                 )}
               </tbody>

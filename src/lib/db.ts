@@ -127,6 +127,18 @@ export async function migrate() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS category_budgets (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      category TEXT NOT NULL,
+      budget NUMERIC(12,2) NOT NULL,
+      PRIMARY KEY (user_id, category)
+    )
+  `;
+
+  // Safe column additions for existing tables
+  await sql`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''`;
+
   await sql`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions(merchant_key)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_transactions_month ON transactions(month_key)`;

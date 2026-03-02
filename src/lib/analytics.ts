@@ -144,6 +144,108 @@ export function computeTopMerchants(
     .slice(0, limit);
 }
 
+// Savings rate per month: (income - all outflows) / income
+export interface SavingsData {
+  monthKey: string;
+  income: number;
+  totalSpent: number;
+  saved: number;
+  savingsRate: number; // 0-100
+}
+
+export function computeSavingsRate(stats: MonthlyStats[]): SavingsData[] {
+  return stats
+    .filter((s) => s.income > 0)
+    .map((s) => {
+      const totalSpent = s.consumption + s.debtPayments + s.transfers + s.atm;
+      const saved = s.income - totalSpent;
+      return {
+        monthKey: s.monthKey,
+        income: s.income,
+        totalSpent,
+        saved,
+        savingsRate: Math.round((saved / s.income) * 100),
+      };
+    });
+}
+
+// Category spending per month for trends
+export interface CategoryMonthly {
+  category: Category;
+  monthKey: string;
+  total: number;
+}
+
+export function computeCategoryMonthly(
+  transactions: Transaction[],
+  includeReserved = false
+): CategoryMonthly[] {
+  const filtered = transactions.filter((t) => {
+    if (!includeReserved && t.isReserved) return false;
+    if (t.amount >= 0) return false;
+    return isConsumptionCategory(t.category);
+  });
+
+  const map = new Map<string, number>();
+  for (const t of filtered) {
+    const key = `${t.category}::${t.monthKey}`;
+    map.set(key, (map.get(key) || 0) + Math.abs(t.amount));
+  }
+
+  return Array.from(map.entries()).map(([key, total]) => {
+    const [category, monthKey] = key.split("::");
+    return { category: category as Category, monthKey, total };
+  });
+}
+
+// Compute spending alerts for current month
+export interface SpendingAlert {
+  category: Category;
+  budget: number;
+  spent: number;
+  projected: number;
+  percentUsed: number;
+  daysLeft: number;
+  severity: "ok" | "warning" | "danger";
+}
+
+export function computeSpendingAlerts(
+  transactions: Transaction[],
+  categoryBudgets: { category: Category; budget: number }[],
+  currentMonthKey: string
+): SpendingAlert[] {
+  const today = new Date();
+  const dayOfMonth = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysLeft = daysInMonth - dayOfMonth;
+
+  const monthTxns = transactions.filter(
+    (t) => t.monthKey === currentMonthKey && t.amount < 0 && !t.isReserved
+  );
+
+  return categoryBudgets
+    .filter((cb) => cb.budget > 0)
+    .map((cb) => {
+      const spent = monthTxns
+        .filter((t) => t.category === cb.category)
+        .reduce((s, t) => s + Math.abs(t.amount), 0);
+      const projected = dayOfMonth > 0 ? (spent / dayOfMonth) * daysInMonth : 0;
+      const percentUsed = (spent / cb.budget) * 100;
+      const severity: SpendingAlert["severity"] =
+        percentUsed >= 100 ? "danger" : percentUsed >= 80 ? "warning" : "ok";
+      return {
+        category: cb.category,
+        budget: cb.budget,
+        spent,
+        projected,
+        percentUsed,
+        daysLeft,
+        severity,
+      };
+    })
+    .sort((a, b) => b.percentUsed - a.percentUsed);
+}
+
 export function getAvailableMonths(transactions: Transaction[]): string[] {
   const months = new Set<string>();
   for (const t of transactions) {

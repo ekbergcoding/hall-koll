@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useAppStore } from "@/hooks/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { computeMonthlyStats } from "@/lib/analytics";
+import { Button } from "@/components/ui/button";
+import { computeMonthlyStats, computeSpendingAlerts, isConsumptionCategory } from "@/lib/analytics";
+import { CATEGORIES, CATEGORY_COLORS, type Category, type CategoryBudget } from "@/lib/transactionModel";
 import { formatSEK, getMonthKey, getMonthLabel } from "@/lib/utils";
 import {
   ResponsiveContainer,
@@ -18,10 +20,15 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
-import { Target, TrendingUp, Calendar, AlertTriangle } from "lucide-react";
+import { Target, TrendingUp, Calendar, AlertTriangle, Bell, Plus, X } from "lucide-react";
+
+const BUDGETABLE_CATEGORIES = CATEGORIES.filter((c) =>
+  isConsumptionCategory(c)
+);
 
 export default function PrognosPage() {
   const { transactions, settings, updateSettings, isLoading } = useAppStore();
+  const [showBudgetEditor, setShowBudgetEditor] = useState(false);
 
   const stats = useMemo(
     () => computeMonthlyStats(transactions, settings.includeReserved),
@@ -31,7 +38,6 @@ export default function PrognosPage() {
   const currentMonthKey = getMonthKey(new Date());
   const currentMonthStats = stats.find((s) => s.monthKey === currentMonthKey);
 
-  // Estimate monthly averages from previous months
   const previousStats = stats.filter((s) => s.monthKey < currentMonthKey);
   const avgIncome = previousStats.length > 0
     ? previousStats.reduce((s, m) => s + m.income, 0) / previousStats.length
@@ -43,7 +49,6 @@ export default function PrognosPage() {
     ? previousStats.reduce((s, m) => s + m.debtPayments, 0) / previousStats.length
     : 0;
 
-  // This month pace
   const today = new Date();
   const dayOfMonth = today.getDate();
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -51,7 +56,6 @@ export default function PrognosPage() {
   const projectedSpend = dayOfMonth > 0 ? (spentSoFar / dayOfMonth) * daysInMonth : 0;
   const budgetProgress = settings.monthlyBudget > 0 ? (spentSoFar / settings.monthlyBudget) * 100 : 0;
 
-  // Runway
   const monthlyNetBurn = avgConsumption + avgDebt - avgIncome;
   const runwayMonths = monthlyNetBurn > 0 && settings.cashBuffer > 0
     ? Math.floor(settings.cashBuffer / monthlyNetBurn)
@@ -59,7 +63,13 @@ export default function PrognosPage() {
       ? Infinity
       : 0;
 
-  // Forecast chart data
+  // Smart alerts for category budgets
+  const alerts = useMemo(
+    () => computeSpendingAlerts(transactions, settings.categoryBudgets ?? [], currentMonthKey),
+    [transactions, settings.categoryBudgets, currentMonthKey]
+  );
+  const activeAlerts = alerts.filter((a) => a.severity !== "ok");
+
   const forecastData = useMemo(() => {
     const data = stats.map((s) => ({
       month: getMonthLabel(s.monthKey).replace(/^\w/, (c) => c.toUpperCase()),
@@ -68,7 +78,6 @@ export default function PrognosPage() {
       isForecast: false,
     }));
 
-    // Add 3 forecast months
     const lastDate = new Date();
     for (let i = 1; i <= 3; i++) {
       const futureDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + i, 1);
@@ -83,6 +92,13 @@ export default function PrognosPage() {
 
     return data;
   }, [stats, settings.monthlyBudget, avgConsumption]);
+
+  function setCategoryBudget(category: Category, budget: number) {
+    const existing = settings.categoryBudgets ?? [];
+    const filtered = existing.filter((b) => b.category !== category);
+    if (budget > 0) filtered.push({ category, budget });
+    updateSettings({ categoryBudgets: filtered });
+  }
 
   if (isLoading) {
     return (
@@ -101,11 +117,45 @@ export default function PrognosPage() {
         </p>
       </div>
 
+      {/* Smart alerts */}
+      {activeAlerts.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2 text-amber-700">
+              <Bell className="h-4 w-4" />
+              <span className="text-sm font-medium">Budgetvarningar</span>
+            </div>
+            {activeAlerts.map((alert) => (
+              <div key={alert.category} className="flex items-center gap-3 text-sm">
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: CATEGORY_COLORS[alert.category] }}
+                />
+                <span className="font-medium">{alert.category}</span>
+                <span className={alert.severity === "danger" ? "text-red-600" : "text-amber-600"}>
+                  {Math.round(alert.percentUsed)}% av budget ({formatSEK(alert.spent)} / {formatSEK(alert.budget)})
+                </span>
+                {alert.severity === "danger" && (
+                  <span className="text-xs text-red-600 font-medium">
+                    Överskriden!
+                  </span>
+                )}
+                {alert.severity === "warning" && (
+                  <span className="text-xs text-amber-600">
+                    {alert.daysLeft} dagar kvar
+                  </span>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Budget inputs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4 space-y-3">
-            <Label className="text-xs text-muted-foreground">Månadsbudget (konsumtion)</Label>
+            <Label className="text-xs text-muted-foreground">Månadsbudget (total konsumtion)</Label>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
@@ -171,6 +221,96 @@ export default function PrognosPage() {
               Dag {dayOfMonth} av {daysInMonth} ({Math.round((dayOfMonth / daysInMonth) * 100)}% av månaden)
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Category budgets */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Budget per kategori</CardTitle>
+              <CardDescription>Sätt individuella budgettak per kategori</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBudgetEditor(!showBudgetEditor)}
+            >
+              {showBudgetEditor ? "Dölj" : "Redigera"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Active category budgets with progress */}
+          {alerts.length > 0 && (
+            <div className="space-y-4 mb-6">
+              {alerts.map((alert) => (
+                <div key={alert.category} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: CATEGORY_COLORS[alert.category] }}
+                      />
+                      <span className="font-medium">{alert.category}</span>
+                    </div>
+                    <span className={`text-xs font-mono ${alert.severity === "danger" ? "text-red-600 font-bold" : ""}`}>
+                      {formatSEK(alert.spent)} / {formatSEK(alert.budget)}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Progress
+                      value={Math.min(alert.percentUsed, 100)}
+                      className={`h-2 ${alert.severity === "danger" ? "[&>div]:bg-red-500" : alert.severity === "warning" ? "[&>div]:bg-amber-500" : ""}`}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>
+                      Projicerat: {formatSEK(alert.projected)}
+                    </span>
+                    <span>
+                      {Math.round(alert.percentUsed)}% använt
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Budget editor */}
+          {showBudgetEditor && (
+            <div className="space-y-2 border-t pt-4">
+              {BUDGETABLE_CATEGORIES.map((cat) => {
+                const existing = settings.categoryBudgets?.find((b) => b.category === cat);
+                return (
+                  <div key={cat} className="flex items-center gap-3">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                    />
+                    <span className="text-sm w-48 truncate">{cat}</span>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={existing?.budget || ""}
+                      onChange={(e) =>
+                        setCategoryBudget(cat, parseFloat(e.target.value) || 0)
+                      }
+                      className="font-mono h-8 w-32"
+                    />
+                    <span className="text-xs text-muted-foreground">SEK</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {alerts.length === 0 && !showBudgetEditor && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Inga kategoribudgetar satta. Klicka Redigera för att lägga till.
+            </p>
+          )}
         </CardContent>
       </Card>
 

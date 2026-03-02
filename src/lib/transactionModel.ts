@@ -35,6 +35,7 @@ export interface Transaction {
   merchantKey: string;
   tags: string[];
   userOverride: boolean;
+  note: string;
 }
 
 export interface CategorizationRule {
@@ -63,16 +64,23 @@ export interface RecurringItem {
   transactionIds: string[];
 }
 
+export interface CategoryBudget {
+  category: Category;
+  budget: number;
+}
+
 export interface UserSettings {
   includeReserved: boolean;
   monthlyBudget: number;
   cashBuffer: number;
+  categoryBudgets: CategoryBudget[];
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
   includeReserved: false,
   monthlyBudget: 15000,
   cashBuffer: 0,
+  categoryBudgets: [],
 };
 
 export const CATEGORY_COLORS: Record<Category, string> = {

@@ -24,6 +24,7 @@ interface AppState {
   importCSV: (content: string) => Promise<{ added: number; errors: string[] }>;
   updateTransactionCategory: (id: string, category: Transaction["category"]) => void;
   updateCategoryByMerchant: (merchantKey: string, category: Transaction["category"]) => void;
+  updateTransactionNote: (id: string, note: string) => void;
   createRuleFromTransaction: (transaction: Transaction, category: Transaction["category"]) => void;
   addRule: (rule: CategorizationRule) => void;
   updateRule: (rule: CategorizationRule) => void;
@@ -92,6 +93,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         merchantKey: catResult.merchantKey || t.merchantKey,
         tags: [],
         userOverride: false,
+        note: "",
       };
       txn.tags = buildAutoTags(txn);
       return txn;
@@ -124,6 +126,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       );
       const changed = updated.filter((t) => t.merchantKey === merchantKey);
       for (const t of changed) dbUpdateTransaction(t);
+      return updated;
+    });
+  }, []);
+
+  const updateTransactionNote = useCallback(async (id: string, note: string) => {
+    setTransactions((prev) => {
+      const updated = prev.map((t) => (t.id === id ? { ...t, note } : t));
+      const found = updated.find((t) => t.id === id);
+      if (found) dbUpdateTransaction(found);
       return updated;
     });
   }, []);
@@ -245,6 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         importCSV,
         updateTransactionCategory,
         updateCategoryByMerchant,
+        updateTransactionNote,
         createRuleFromTransaction,
         addRule: addRuleCb,
         updateRule: updateRuleCb,

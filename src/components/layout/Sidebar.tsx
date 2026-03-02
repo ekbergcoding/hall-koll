@@ -14,6 +14,7 @@ import {
   BookOpen,
   Store,
   PieChart,
+  CalendarDays,
   LogOut,
   Menu,
   X,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/aterkommande", label: "Återkommande", icon: RefreshCcw },
   { href: "/regler", label: "Regler", icon: BookOpen },
   { href: "/prognos", label: "Prognos", icon: TrendingUp },
+  { href: "/arssammanfattning", label: "Årsrapport", icon: CalendarDays },
   { href: "/installningar", label: "Inställningar", icon: Settings },
 ];
 

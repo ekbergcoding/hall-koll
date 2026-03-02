@@ -74,7 +74,7 @@ function parseCSVLine(line: string, separator: string): string[] {
 }
 
 export interface ParseResult {
-  transactions: Omit<Transaction, "category" | "tags" | "userOverride">[];
+  transactions: Omit<Transaction, "category" | "tags" | "userOverride" | "note">[];
   errors: string[];
   totalRows: number;
   skippedRows: number;
@@ -115,7 +115,7 @@ export function parseNordeaCSV(csvContent: string): ParseResult {
     return { transactions: [], errors, totalRows: lines.length - 1, skippedRows: lines.length - 1 };
   }
 
-  const transactions: Omit<Transaction, "category" | "tags" | "userOverride">[] = [];
+  const transactions: Omit<Transaction, "category" | "tags" | "userOverride" | "note">[] = [];
   let skippedRows = 0;
 
   for (let i = 1; i < lines.length; i++) {
@@ -178,8 +178,8 @@ export function parseNordeaCSV(csvContent: string): ParseResult {
 
 export function deduplicateTransactions(
   existing: Transaction[],
-  incoming: Omit<Transaction, "category" | "tags" | "userOverride">[]
-): Omit<Transaction, "category" | "tags" | "userOverride">[] {
+  incoming: Omit<Transaction, "category" | "tags" | "userOverride" | "note">[]
+): Omit<Transaction, "category" | "tags" | "userOverride" | "note">[] {
   const existingKeys = new Set(existing.map((t) => `${t.bookingDate}|${t.amount}|${t.rubrik}|${t.saldo}`));
   return incoming.filter((t) => {
     const key = `${t.bookingDate}|${t.amount}|${t.rubrik}|${t.saldo}`;
