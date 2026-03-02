@@ -13,11 +13,14 @@ export interface MonthlyStats {
 
 const CONSUMPTION_CATEGORIES: Category[] = [
   "Konsumtion",
+  "Boende",
+  "Hälsa, sjukvård",
   "Mat, butik",
   "Mat, leverans",
   "Transport",
   "Abonnemang, streaming",
   "Nöje, bar, restaurang",
+  "Kläder, shopping",
   "Resor",
   "Avgifter, bank, försäkring",
   "Övrigt",

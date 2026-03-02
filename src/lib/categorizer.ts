@@ -25,6 +25,36 @@ export const DEFAULT_RULES: CategorizationRule[] = [
   { id: "r-kontantuttag", field: "rubrik", matchType: "contains", pattern: "Kontantuttag", category: "Kontantuttag", priority: 20, isDefault: true, enabled: true },
   { id: "r-bankomat", field: "rubrik", matchType: "contains", pattern: "BANKOMAT", category: "Kontantuttag", priority: 20, isDefault: true, enabled: true },
 
+  // Housing
+  { id: "r-hyra", field: "rubrik", matchType: "contains", pattern: "Hyra", category: "Boende", amountCondition: "negative", priority: 12, isDefault: true, enabled: true },
+  { id: "r-hyresgast", field: "rubrik", matchType: "contains", pattern: "Hyresgäst", category: "Boende", amountCondition: "negative", priority: 12, isDefault: true, enabled: true },
+  { id: "r-bostadsratt", field: "rubrik", matchType: "contains", pattern: "Bostadsrätt", category: "Boende", amountCondition: "negative", priority: 12, isDefault: true, enabled: true },
+  { id: "r-riksbyggen", field: "rubrik", matchType: "contains", pattern: "Riksbyggen", category: "Boende", amountCondition: "negative", priority: 12, isDefault: true, enabled: true },
+  { id: "r-vattenfall", field: "rubrik", matchType: "contains", pattern: "Vattenfall", category: "Boende", merchantKey: "VATTENFALL", amountCondition: "negative", priority: 25, isDefault: true, enabled: true },
+  { id: "r-ellevio", field: "rubrik", matchType: "contains", pattern: "Ellevio", category: "Boende", merchantKey: "ELLEVIO", amountCondition: "negative", priority: 25, isDefault: true, enabled: true },
+  { id: "r-eon", field: "rubrik", matchType: "contains", pattern: "E.ON", category: "Boende", merchantKey: "E.ON", amountCondition: "negative", priority: 25, isDefault: true, enabled: true },
+  { id: "r-fortum", field: "rubrik", matchType: "contains", pattern: "Fortum", category: "Boende", merchantKey: "FORTUM", amountCondition: "negative", priority: 25, isDefault: true, enabled: true },
+  { id: "r-telia-bredband", field: "rubrik", matchType: "contains", pattern: "Telia", category: "Boende", merchantKey: "TELIA", amountCondition: "negative", priority: 28, isDefault: true, enabled: true },
+
+  // Health & medical
+  { id: "r-apotek", field: "rubrik", matchType: "contains", pattern: "APOTEK", category: "Hälsa, sjukvård", merchantKey: "APOTEK", priority: 30, isDefault: true, enabled: true },
+  { id: "r-apotea", field: "rubrik", matchType: "contains", pattern: "APOTEA", category: "Hälsa, sjukvård", merchantKey: "APOTEA", priority: 30, isDefault: true, enabled: true },
+  { id: "r-kronans", field: "rubrik", matchType: "contains", pattern: "KRONANS", category: "Hälsa, sjukvård", merchantKey: "KRONANS APOTEK", priority: 30, isDefault: true, enabled: true },
+  { id: "r-vardcentral", field: "rubrik", matchType: "contains", pattern: "Vårdcentral", category: "Hälsa, sjukvård", priority: 30, isDefault: true, enabled: true },
+  { id: "r-tandvard", field: "rubrik", matchType: "contains", pattern: "Tandvård", category: "Hälsa, sjukvård", priority: 30, isDefault: true, enabled: true },
+  { id: "r-folktand", field: "rubrik", matchType: "contains", pattern: "Folktand", category: "Hälsa, sjukvård", merchantKey: "FOLKTANDVÅRDEN", priority: 30, isDefault: true, enabled: true },
+  { id: "r-1177", field: "rubrik", matchType: "contains", pattern: "1177", category: "Hälsa, sjukvård", priority: 30, isDefault: true, enabled: true },
+  { id: "r-capio", field: "rubrik", matchType: "contains", pattern: "CAPIO", category: "Hälsa, sjukvård", merchantKey: "CAPIO", priority: 30, isDefault: true, enabled: true },
+  { id: "r-synoptik", field: "rubrik", matchType: "contains", pattern: "SYNOPTIK", category: "Hälsa, sjukvård", merchantKey: "SYNOPTIK", priority: 30, isDefault: true, enabled: true },
+  { id: "r-specsavers", field: "rubrik", matchType: "contains", pattern: "SPECSAVERS", category: "Hälsa, sjukvård", merchantKey: "SPECSAVERS", priority: 30, isDefault: true, enabled: true },
+
+  // Clothing & shopping
+  { id: "r-hm", field: "rubrik", matchType: "contains", pattern: "H&M", category: "Kläder, shopping", merchantKey: "H&M", priority: 30, isDefault: true, enabled: true },
+  { id: "r-zara", field: "rubrik", matchType: "contains", pattern: "ZARA", category: "Kläder, shopping", merchantKey: "ZARA", priority: 30, isDefault: true, enabled: true },
+  { id: "r-zalando", field: "rubrik", matchType: "contains", pattern: "ZALANDO", category: "Kläder, shopping", merchantKey: "ZALANDO", priority: 30, isDefault: true, enabled: true },
+  { id: "r-stadium", field: "rubrik", matchType: "contains", pattern: "STADIUM", category: "Kläder, shopping", merchantKey: "STADIUM", priority: 30, isDefault: true, enabled: true },
+  { id: "r-ikea", field: "rubrik", matchType: "contains", pattern: "IKEA", category: "Kläder, shopping", merchantKey: "IKEA", priority: 30, isDefault: true, enabled: true },
+
   // Food delivery
   { id: "r-foodora", field: "rubrik", matchType: "contains", pattern: "FOODORA", category: "Mat, leverans", merchantKey: "FOODORA", priority: 30, isDefault: true, enabled: true },
   { id: "r-wolt", field: "rubrik", matchType: "contains", pattern: "WOLT", category: "Mat, leverans", merchantKey: "WOLT", priority: 30, isDefault: true, enabled: true },
