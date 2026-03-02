@@ -11,21 +11,11 @@ for (const line of envFile.split("\n")) {
 async function main() {
   const sql = neon(process.env.DATABASE_URL!);
 
-  console.log("Dropping old tables (no user data to preserve)...");
-  await sql`DROP TABLE IF EXISTS custom_categories CASCADE`;
-  await sql`DROP TABLE IF EXISTS recurring CASCADE`;
-  await sql`DROP TABLE IF EXISTS settings CASCADE`;
-  await sql`DROP TABLE IF EXISTS rules CASCADE`;
-  await sql`DROP TABLE IF EXISTS transactions CASCADE`;
-  await sql`DROP TABLE IF EXISTS verification_tokens CASCADE`;
-  await sql`DROP TABLE IF EXISTS sessions CASCADE`;
-  await sql`DROP TABLE IF EXISTS accounts CASCADE`;
-  await sql`DROP TABLE IF EXISTS users CASCADE`;
+  console.log("Running safe migration (no data loss)...");
 
-  console.log("Creating auth tables...");
-
+  // Auth tables
   await sql`
-    CREATE TABLE users (
+    CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       name TEXT,
       email TEXT UNIQUE,
@@ -35,7 +25,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE accounts (
+    CREATE TABLE IF NOT EXISTS accounts (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       type TEXT NOT NULL,
@@ -52,7 +42,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE sessions (
+    CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       "sessionToken" TEXT NOT NULL UNIQUE,
       "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -61,7 +51,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE verification_tokens (
+    CREATE TABLE IF NOT EXISTS verification_tokens (
       identifier TEXT NOT NULL,
       token TEXT NOT NULL UNIQUE,
       expires TIMESTAMPTZ NOT NULL,
@@ -69,10 +59,9 @@ async function main() {
     )
   `;
 
-  console.log("Creating app data tables...");
-
+  // App data tables
   await sql`
-    CREATE TABLE transactions (
+    CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       booking_date TIMESTAMPTZ,
@@ -93,7 +82,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE rules (
+    CREATE TABLE IF NOT EXISTS rules (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       field TEXT NOT NULL,
@@ -109,7 +98,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE recurring (
+    CREATE TABLE IF NOT EXISTS recurring (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       merchant_key TEXT NOT NULL,
@@ -125,7 +114,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE settings (
+    CREATE TABLE IF NOT EXISTS settings (
       key TEXT NOT NULL,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       include_reserved BOOLEAN DEFAULT false,
@@ -136,7 +125,7 @@ async function main() {
   `;
 
   await sql`
-    CREATE TABLE custom_categories (
+    CREATE TABLE IF NOT EXISTS custom_categories (
       name TEXT NOT NULL,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       color TEXT NOT NULL,
@@ -144,15 +133,15 @@ async function main() {
     )
   `;
 
-  console.log("Creating indexes...");
-  await sql`CREATE INDEX idx_transactions_user ON transactions(user_id)`;
-  await sql`CREATE INDEX idx_transactions_merchant ON transactions(merchant_key)`;
-  await sql`CREATE INDEX idx_transactions_month ON transactions(month_key)`;
-  await sql`CREATE INDEX idx_transactions_category ON transactions(category)`;
-  await sql`CREATE INDEX idx_rules_user ON rules(user_id)`;
-  await sql`CREATE INDEX idx_recurring_user ON recurring(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions(merchant_key)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_transactions_month ON transactions(month_key)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_rules_user ON rules(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring(user_id)`;
 
-  console.log("Migration complete!");
+  const txCount = await sql`SELECT COUNT(*) as c FROM transactions`;
+  console.log(`Migration complete. ${txCount[0].c} transactions in database.`);
 }
 
 main().catch(console.error);

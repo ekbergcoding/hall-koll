@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { CATEGORY_COLORS, type Category } from "@/lib/transactionModel";
 import { computeTopMerchants, getAvailableMonths, filterByMonth } from "@/lib/analytics";
 import { formatSEK, getMonthLabel } from "@/lib/utils";
+import { CategorySelector } from "@/components/transactions/CategorySelector";
 import { Search } from "lucide-react";
 
 export default function HandlarePage() {
-  const { transactions, isLoading } = useAppStore();
+  const { transactions, isLoading, updateCategoryByMerchant } = useAppStore();
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -90,19 +91,19 @@ export default function HandlarePage() {
           <div className="space-y-3">
             {merchants.map((m, idx) => (
               <div key={m.merchantKey} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs text-muted-foreground w-6 shrink-0 text-right">{idx + 1}.</span>
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: CATEGORY_COLORS[m.category] || "#94a3b8" }}
-                    />
                     <span className="font-medium truncate">{m.merchantKey}</span>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0 ml-3">
-                    <span className="hidden sm:inline">{m.category}</span>
-                    <span>{m.count} st</span>
-                    <span className="font-mono font-medium text-foreground w-20 text-right">{formatSEK(m.total)}</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <CategorySelector
+                      value={m.category}
+                      onChange={(cat) => updateCategoryByMerchant(m.merchantKey, cat)}
+                      size="sm"
+                    />
+                    <span className="text-xs text-muted-foreground">{m.count} st</span>
+                    <span className="font-mono text-xs font-medium w-20 text-right">{formatSEK(m.total)}</span>
                   </div>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted ml-9">
