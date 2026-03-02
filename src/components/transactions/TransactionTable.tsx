@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { CategorySelector } from "./CategorySelector";
 import { formatSEKExact, formatDate } from "@/lib/utils";
-import { CATEGORY_COLORS, type Transaction, type Category } from "@/lib/transactionModel";
+import { CATEGORIES, CATEGORY_COLORS, type Transaction, type Category } from "@/lib/transactionModel";
 import { useAppStore } from "@/hooks/useAppStore";
 import { Copy, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -33,12 +33,24 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
   const { updateTransactionCategory, updateCategoryByMerchant, createRuleFromTransaction } = useAppStore();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [showIncome, setShowIncome] = useState(true);
-  const [showDebt, setShowDebt] = useState(true);
-  const [showTransfers, setShowTransfers] = useState(true);
-  const [showATM, setShowATM] = useState(true);
+  const [selectedCategories, setSelectedCategories] = useState<Set<Category>>(new Set());
   const [showReserved, setShowReserved] = useState(false);
   const [pendingChange, setPendingChange] = useState<PendingCategoryChange | null>(null);
+
+  const categoriesInUse = useMemo(() => {
+    const cats = new Set(transactions.map((t) => t.category));
+    return CATEGORIES.filter((c) => cats.has(c));
+  }, [transactions]);
+
+  function toggleCategory(cat: Category) {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+    setPage(0);
+  }
 
   function handleCategoryChange(transaction: Transaction, newCategory: Category) {
     const matchCount = transactions.filter(
@@ -67,10 +79,9 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
   const filtered = useMemo(() => {
     let result = transactions;
 
-    if (!showIncome) result = result.filter((t) => t.category !== "Inkomst");
-    if (!showDebt) result = result.filter((t) => t.category !== "Skuld, lån, amortering");
-    if (!showTransfers) result = result.filter((t) => t.category !== "Överföringar, interna flyttar");
-    if (!showATM) result = result.filter((t) => t.category !== "Kontantuttag");
+    if (selectedCategories.size > 0) {
+      result = result.filter((t) => selectedCategories.has(t.category));
+    }
     if (!showReserved) result = result.filter((t) => !t.isReserved);
 
     if (search.trim()) {
@@ -89,7 +100,7 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
       if (!b.bookingDate) return 1;
       return new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime();
     });
-  }, [transactions, search, showIncome, showDebt, showTransfers, showATM, showReserved]);
+  }, [transactions, search, selectedCategories, showReserved]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -112,24 +123,36 @@ export function TransactionTable({ transactions, compact = false }: TransactionT
           </div>
         </div>
         {!compact && (
-          <div className="flex flex-wrap gap-4 pt-2">
-            <div className="flex items-center gap-2">
-              <Switch id="show-income" checked={showIncome} onCheckedChange={setShowIncome} />
-              <Label htmlFor="show-income" className="text-xs">Inkomst</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="show-debt" checked={showDebt} onCheckedChange={setShowDebt} />
-              <Label htmlFor="show-debt" className="text-xs">Skuld</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="show-transfers" checked={showTransfers} onCheckedChange={setShowTransfers} />
-              <Label htmlFor="show-transfers" className="text-xs">Överföringar</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="show-atm" checked={showATM} onCheckedChange={setShowATM} />
-              <Label htmlFor="show-atm" className="text-xs">Kontant</Label>
-            </div>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-1.5 pt-2">
+            {categoriesInUse.map((cat) => {
+              const active = selectedCategories.size === 0 || selectedCategories.has(cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => toggleCategory(cat)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    active
+                      ? "bg-background border-border text-foreground"
+                      : "bg-muted/40 border-transparent text-muted-foreground opacity-50"
+                  }`}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: CATEGORY_COLORS[cat] }}
+                  />
+                  {cat}
+                </button>
+              );
+            })}
+            {selectedCategories.size > 0 && (
+              <button
+                onClick={() => { setSelectedCategories(new Set()); setPage(0); }}
+                className="inline-flex items-center rounded-full border border-dashed px-2.5 py-0.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Visa alla
+              </button>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
               <Switch id="show-reserved" checked={showReserved} onCheckedChange={setShowReserved} />
               <Label htmlFor="show-reserved" className="text-xs">Reserverade</Label>
             </div>
