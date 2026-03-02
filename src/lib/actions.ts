@@ -8,9 +8,16 @@ import { DEFAULT_RULES } from "./categorizer";
 // ── Transactions ──
 
 export async function getAllTransactions(): Promise<Transaction[]> {
-  const sql = getSQL();
-  const rows = await sql`SELECT * FROM transactions ORDER BY booking_date DESC NULLS FIRST`;
-  return rows.map(rowToTransaction);
+  try {
+    console.log("[actions] getAllTransactions: start");
+    const sql = getSQL();
+    const rows = await sql`SELECT * FROM transactions ORDER BY booking_date DESC NULLS FIRST`;
+    console.log("[actions] getAllTransactions: got", rows.length, "rows");
+    return rows.map(rowToTransaction);
+  } catch (error) {
+    console.error("[actions] getAllTransactions FAILED:", error);
+    throw error;
+  }
 }
 
 export async function saveTransactions(transactions: Transaction[]): Promise<void> {
@@ -50,23 +57,38 @@ export async function clearTransactions(): Promise<void> {
 // ── Rules ──
 
 export async function getAllRules(): Promise<CategorizationRule[]> {
-  const sql = getSQL();
-  const rows = await sql`SELECT * FROM rules ORDER BY priority ASC`;
-  if (rows.length === 0) {
-    await saveRules(DEFAULT_RULES);
-    return DEFAULT_RULES;
+  try {
+    console.log("[actions] getAllRules: start");
+    const sql = getSQL();
+    const rows = await sql`SELECT * FROM rules ORDER BY priority ASC`;
+    console.log("[actions] getAllRules: got", rows.length, "rows");
+    if (rows.length === 0) {
+      console.log("[actions] getAllRules: seeding default rules");
+      await saveRules(DEFAULT_RULES);
+      return DEFAULT_RULES;
+    }
+    return rows.map(rowToRule);
+  } catch (error) {
+    console.error("[actions] getAllRules FAILED:", error);
+    throw error;
   }
-  return rows.map(rowToRule);
 }
 
 export async function saveRules(rules: CategorizationRule[]): Promise<void> {
-  const sql = getSQL();
-  await sql`DELETE FROM rules`;
-  for (const r of rules) {
-    await sql`
-      INSERT INTO rules (id, field, match_type, pattern, category, merchant_key, amount_condition, priority, is_default, enabled)
-      VALUES (${r.id}, ${r.field}, ${r.matchType}, ${r.pattern}, ${r.category}, ${r.merchantKey ?? null}, ${r.amountCondition ?? null}, ${r.priority}, ${r.isDefault}, ${r.enabled})
-    `;
+  try {
+    console.log("[actions] saveRules: saving", rules.length, "rules");
+    const sql = getSQL();
+    await sql`DELETE FROM rules`;
+    for (const r of rules) {
+      await sql`
+        INSERT INTO rules (id, field, match_type, pattern, category, merchant_key, amount_condition, priority, is_default, enabled)
+        VALUES (${r.id}, ${r.field}, ${r.matchType}, ${r.pattern}, ${r.category}, ${r.merchantKey ?? null}, ${r.amountCondition ?? null}, ${r.priority}, ${r.isDefault}, ${r.enabled})
+      `;
+    }
+    console.log("[actions] saveRules: done");
+  } catch (error) {
+    console.error("[actions] saveRules FAILED:", error);
+    throw error;
   }
 }
 
@@ -96,9 +118,16 @@ export async function deleteRule(id: string): Promise<void> {
 // ── Recurring ──
 
 export async function getAllRecurring(): Promise<RecurringItem[]> {
-  const sql = getSQL();
-  const rows = await sql`SELECT * FROM recurring`;
-  return rows.map(rowToRecurring);
+  try {
+    console.log("[actions] getAllRecurring: start");
+    const sql = getSQL();
+    const rows = await sql`SELECT * FROM recurring`;
+    console.log("[actions] getAllRecurring: got", rows.length, "rows");
+    return rows.map(rowToRecurring);
+  } catch (error) {
+    console.error("[actions] getAllRecurring FAILED:", error);
+    throw error;
+  }
 }
 
 export async function saveRecurring(items: RecurringItem[]): Promise<void> {
@@ -115,15 +144,22 @@ export async function saveRecurring(items: RecurringItem[]): Promise<void> {
 // ── Settings ──
 
 export async function getSettings(): Promise<UserSettings> {
-  const sql = getSQL();
-  const rows = await sql`SELECT * FROM settings WHERE key = 'user'`;
-  if (rows.length === 0) return DEFAULT_SETTINGS;
-  const r = rows[0];
-  return {
-    includeReserved: r.include_reserved,
-    monthlyBudget: Number(r.monthly_budget),
-    cashBuffer: Number(r.cash_buffer),
-  };
+  try {
+    console.log("[actions] getSettings: start");
+    const sql = getSQL();
+    const rows = await sql`SELECT * FROM settings WHERE key = 'user'`;
+    console.log("[actions] getSettings: got", rows.length, "rows");
+    if (rows.length === 0) return DEFAULT_SETTINGS;
+    const r = rows[0];
+    return {
+      includeReserved: r.include_reserved,
+      monthlyBudget: Number(r.monthly_budget),
+      cashBuffer: Number(r.cash_buffer),
+    };
+  } catch (error) {
+    console.error("[actions] getSettings FAILED:", error);
+    throw error;
+  }
 }
 
 export async function saveSettings(settings: UserSettings): Promise<void> {
