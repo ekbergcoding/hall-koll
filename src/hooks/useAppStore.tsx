@@ -59,20 +59,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           getSettings(),
         ]);
 
-        if (txns.length === 0) {
-          const demo = generateDemoTransactions();
-          await saveTransactions(demo);
-          setTransactions(demo);
-        } else {
-          setTransactions(txns);
-        }
+        setTransactions(txns);
 
         setRules(loadedRules);
         setRecurringItems(recurring);
         setSettings(loadedSettings);
       } catch {
-        const demo = generateDemoTransactions();
-        setTransactions(demo);
         setRules(DEFAULT_RULES);
         setSettings(DEFAULT_SETTINGS);
       } finally {
